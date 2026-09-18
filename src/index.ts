@@ -3,7 +3,9 @@
  * mcp-server-zuuna — MCP stdio server exposing Zuuna's v1 API as agent tools.
  *
  * Config via environment:
- *   ZUUNA_API_TOKEN  (required)  Bearer API token from your Zuuna workspace
+ *   ZUUNA_API_TOKEN  (required for tool calls)  Bearer API token from your
+ *                                Zuuna workspace — the server also starts without
+ *                                it so registries can run introspection probes
  *   ZUUNA_BASE_URL   (optional)  default https://app.zuuna.de; must be an absolute
  *                                http(s) URL (invalid values fail at startup) and a
  *                                plain-http value prints a cleartext-token warning
@@ -25,7 +27,12 @@ function fail(message: string): never {
 async function main(): Promise<void> {
   const token = process.env.ZUUNA_API_TOKEN?.trim();
   if (!token) {
-    fail("ZUUNA_API_TOKEN is not set. Create an API token in your Zuuna workspace and export it.");
+    // Start anyway so MCP introspection (initialize, tools/list) works without
+    // credentials — registries and directories probe the server this way. Tool
+    // calls answer with a setup error until a token is configured.
+    console.error(
+      "mcp-server-zuuna: ZUUNA_API_TOKEN is not set. The server is starting, but every tool call will fail until you create an API token in your Zuuna workspace and export it.",
+    );
   }
 
   let timeoutMs = DEFAULT_TIMEOUT_MS;

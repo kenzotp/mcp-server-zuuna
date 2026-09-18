@@ -68,8 +68,8 @@ export function validateBaseUrl(raw: string): string {
 export interface ZuunaClientOptions {
   /** Zuuna base URL. Defaults to https://app.zuuna.de (env ZUUNA_BASE_URL). Must be an absolute http(s) URL — anything else throws at construction. */
   baseUrl?: string;
-  /** API token, sent as a Bearer token (env ZUUNA_API_TOKEN). */
-  token: string;
+  /** API token, sent as a Bearer token (env ZUUNA_API_TOKEN). Optional at construction so the server can start without one (introspection); requests without a token throw. */
+  token?: string;
   /** Per-request timeout in milliseconds. Default 15000. No retries are made. */
   timeoutMs?: number;
   /** Injectable fetch for tests. Defaults to globalThis.fetch. */
@@ -84,7 +84,7 @@ export interface ZuunaClientOptions {
  */
 export class ZuunaClient {
   private readonly baseUrl: string;
-  private readonly token: string;
+  private readonly token: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch;
 
@@ -178,6 +178,13 @@ export class ZuunaClient {
     path: string,
     body?: unknown,
   ): Promise<T> {
+    if (!this.token) {
+      // Deferred token check: the server starts without a token (registry
+      // introspection), so the per-call error carries the setup instructions.
+      throw new Error(
+        "ZUUNA_API_TOKEN is not set. Create an API token in your Zuuna workspace and set it via ZUUNA_API_TOKEN in the MCP client config.",
+      );
+    }
     const url = new URL(path.replace(/^\//, ""), this.baseUrl).toString();
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,

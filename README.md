@@ -57,7 +57,7 @@ The server is configured per client via environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ZUUNA_API_TOKEN` | — (required) | Bearer API token |
+| `ZUUNA_API_TOKEN` | — (required for tool calls) | Bearer API token. The server starts without it — registries and directories that only run MCP introspection need no token — and every tool call answers with a setup error until it is set. |
 | `ZUUNA_BASE_URL` | `https://app.zuuna.de` | Zuuna base URL — must be an absolute http(s) URL (invalid values fail at startup); a plain-http value prints a cleartext-token warning to stderr |
 | `ZUUNA_TIMEOUT_MS` | `15000` | Per-request timeout |
 
