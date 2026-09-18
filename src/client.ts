@@ -33,8 +33,40 @@ export class ZuunaNetworkError extends Error {
 export const DEFAULT_BASE_URL = "https://app.zuuna.de";
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * Page size for the board card list: the v1 API's own MAX_PAGE_SIZE (it clamps
+ * any larger `?limit`). One page keeps a big board from flooding an agent's
+ * context; the response's `nextCursor` says when more cards exist.
+ */
+export const BOARD_CARDS_PAGE_SIZE = 200;
+
+/**
+ * Validate and normalize a base URL: it must parse as an absolute http(s) URL.
+ * Throws a plain Error with a clear message so the server can fail fast in the
+ * constructor (i.e. at startup) instead of throwing a bare `new URL()` error
+ * from the middle of a tool call. Returns the URL with exactly one trailing
+ * slash, which is what `request()` joins paths against.
+ */
+export function validateBaseUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(
+      `Invalid ZUUNA_BASE_URL "${raw}": it must be an absolute http(s) URL, e.g. ${DEFAULT_BASE_URL}.`,
+    );
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(
+      `Invalid ZUUNA_BASE_URL "${raw}": unsupported scheme "${url.protocol}" — use http(s).`,
+    );
+  }
+  const out = url.toString();
+  return out.endsWith("/") ? out : `${out}/`;
+}
+
 export interface ZuunaClientOptions {
-  /** Zuuna base URL. Defaults to https://app.zuuna.de (env ZUUNA_BASE_URL). */
+  /** Zuuna base URL. Defaults to https://app.zuuna.de (env ZUUNA_BASE_URL). Must be an absolute http(s) URL — anything else throws at construction. */
   baseUrl?: string;
   /** API token, sent as a Bearer token (env ZUUNA_API_TOKEN). */
   token: string;
@@ -58,10 +90,18 @@ export class ZuunaClient {
 
   constructor(options: ZuunaClientOptions) {
     const raw = options.baseUrl?.trim() || DEFAULT_BASE_URL;
-    this.baseUrl = raw.endsWith("/") ? raw : `${raw}/`;
+    this.baseUrl = validateBaseUrl(raw);
     this.token = options.token;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
+
+    if (new URL(this.baseUrl).protocol !== "https:") {
+      // stderr on purpose — stdout belongs to the MCP stdio transport.
+      console.error(
+        `mcp-server-zuuna: warning: ZUUNA_BASE_URL is not HTTPS (${this.baseUrl.replace(/\/$/, "")}). ` +
+          `The API token would travel in cleartext; use https:// unless this is a local test endpoint.`,
+      );
+    }
   }
 
   // ---- endpoint methods (grounded in the v1 routes) ----
@@ -82,11 +122,18 @@ export class ZuunaClient {
   }
 
   /**
-   * GET /api/v1/boards/{boardId}/cards — scope cards:read. Unpaged by default,
-   * which the API answers with the FULL list in board display order.
+   * GET /api/v1/boards/{boardId}/cards — scope cards:read. Paged at
+   * BOARD_CARDS_PAGE_SIZE (the API clamps at its MAX_PAGE_SIZE anyway), so a
+   * huge board comes back one context-friendly page at a time: when the answer
+   * carries a `nextCursor`, more cards exist — pass it back as `cursor`.
    */
-  boardCards(boardId: string): Promise<ZuunaBoardCardsResponse> {
-    return this.request("GET", `/api/v1/boards/${encodeURIComponent(boardId)}/cards`);
+  boardCards(boardId: string, opts?: { cursor?: string }): Promise<ZuunaBoardCardsResponse> {
+    const params = new URLSearchParams({ limit: String(BOARD_CARDS_PAGE_SIZE) });
+    if (opts?.cursor) params.set("cursor", opts.cursor);
+    return this.request(
+      "GET",
+      `/api/v1/boards/${encodeURIComponent(boardId)}/cards?${params.toString()}`,
+    );
   }
 
   /** GET /api/v1/cards/{idOrKey} — scope cards:read. The handle accepts a cuid OR a display key ("ZNA-123"). */
@@ -94,10 +141,15 @@ export class ZuunaClient {
     return this.request("GET", `/api/v1/cards/${encodeURIComponent(idOrKey)}`);
   }
 
-  /** POST /api/v1/boards/{boardId}/cards — scope cards:write. */
+  /**
+   * POST /api/v1/boards/{boardId}/cards — scope cards:write. `idempotencyKey`
+   * (v1 ZNA-556) makes retries safe: re-sending the same key after a lost
+   * response or a 5xx returns the ORIGINAL card (200) instead of minting a
+   * duplicate.
+   */
   createCard(
     boardId: string,
-    input: { title: string; description?: string | null; columnId?: string },
+    input: { title: string; description?: string | null; columnId?: string; idempotencyKey?: string },
   ): Promise<ZuunaCardWriteResult> {
     return this.request("POST", `/api/v1/boards/${encodeURIComponent(boardId)}/cards`, input);
   }

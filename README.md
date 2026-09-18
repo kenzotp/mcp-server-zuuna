@@ -14,8 +14,9 @@
 
 ## Status
 
-Working and tested — **not yet on npm.** Publishing is gated behind an auth review
-(of the token model, scopes and tool surface). Until then, run from source (below).
+Working and tested, and **published on npm** (`npx -y mcp-server-zuuna`) after an auth
+review of the token model, scopes and tool surface. Run from source (bottom) if you want
+to hack on it.
 
 ## Tools
 
@@ -23,9 +24,9 @@ Working and tested — **not yet on npm.** Publishing is gated behind an auth re
 |---|---|---|---|
 | `zuuna_me` | Token identity: org, plan, scopes, grace-window deadline | `GET /api/v1/me` | any token |
 | `zuuna_boards` | List boards (non-archived, non-private) | `GET /api/v1/boards` | `boards:read` |
-| `zuuna_board` | One board assembled: columns in order + all cards (key, title, column, priority, type) | `GET /api/v1/boards/{id}/columns` + `GET /api/v1/boards/{id}/cards` | `boards:read`, `cards:read` |
+| `zuuna_board` | One board assembled: columns in order + cards (key, title, column, priority, type) — capped at one 200-card page; when more exist it returns `cardsTruncated: true` + `nextCursor` (pass as `cardsCursor`) | `GET /api/v1/boards/{id}/columns` + `GET /api/v1/boards/{id}/cards?limit=200` | `boards:read`, `cards:read` |
 | `zuuna_card` | Full card detail by display key (`ZNA-2001`) or id | `GET /api/v1/cards/{idOrKey}` | `cards:read` |
-| `zuuna_create_card` | Create a card (title required; column by id or title; board by id or key) | `POST /api/v1/boards/{id}/cards` | `cards:write` (+ `boards:read` for key/column resolution) |
+| `zuuna_create_card` | Create a card (title required; column by id or title; board by id or key; optional `idempotencyKey` makes retries safe) | `POST /api/v1/boards/{id}/cards` | `cards:write` (+ `boards:read` for key/column resolution) |
 | `zuuna_update_card` | Edit title / description / priority (`HIGHEST\|HIGH\|NORMAL\|LOW\|LOWEST`, null clears) | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
 | `zuuna_move_card` | Move a card to a column, by id or title | `PATCH /api/v1/cards/{idOrKey}` (after `cards:read` for title resolution) | `cards:read`, `cards:write` |
 | `zuuna_comment` | Comment on a card (author = the token's creator) | `POST /api/v1/cards/{idOrKey}/comments` | `comments:write` |
@@ -39,6 +40,13 @@ Behavioral notes:
   15 s (configurable) and surface as network errors.
 - Card display keys like `ZNA-2001` work anywhere a card is addressed — the v1 API accepts
   the key as the handle.
+- `zuuna_board` pages the card list (200 cards per page, the v1 API's own cap) so a big
+  board cannot flood the agent's context. When a page is not the whole board, the response
+  says `cardsTruncated: true` and carries `nextCursor`; send it back as `cardsCursor` to
+  fetch the next page.
+- `zuuna_create_card` accepts an optional client-chosen `idempotencyKey`: re-sending the
+  same key after a lost response or a 5xx returns the original card (200) instead of
+  minting a duplicate.
 
 ## Setup
 
@@ -50,7 +58,7 @@ The server is configured per client via environment variables:
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZUUNA_API_TOKEN` | — (required) | Bearer API token |
-| `ZUUNA_BASE_URL` | `https://app.zuuna.de` | Zuuna base URL |
+| `ZUUNA_BASE_URL` | `https://app.zuuna.de` | Zuuna base URL — must be an absolute http(s) URL (invalid values fail at startup); a plain-http value prints a cleartext-token warning to stderr |
 | `ZUUNA_TIMEOUT_MS` | `15000` | Per-request timeout |
 
 ### Claude Code
@@ -102,7 +110,7 @@ args = ["-y", "mcp-server-zuuna"]
 env = { "ZUUNA_API_TOKEN" = "zuuna_your_token" }
 ```
 
-### Until the npm package exists: run from source
+### Run from source
 
 ```sh
 git clone https://github.com/kenzotp/mcp-server-zuuna
