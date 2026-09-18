@@ -1,0 +1,53 @@
+{
+  "name": "mcp-server-zuuna",
+  "version": "0.1.0",
+  "description": "MCP server for Zuuna — agent-native board access for Claude Code, Cursor and Codex. Read boards, create/update/move cards, comment — over the Zuuna v1 API.",
+  "license": "MIT",
+  "author": "kenzotp",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-server-zuuna": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kenzotp/mcp-server-zuuna.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "zuuna",
+    "kanban",
+    "project-management",
+    "ai-agents",
+    "claude-code",
+    "cursor",
+    "codex"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "ZUUNA_E2E=1 vitest run test/e2e.test.ts",
+    "serve": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "eslint": "^9.30.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^5.0.1"
+  }
+}
