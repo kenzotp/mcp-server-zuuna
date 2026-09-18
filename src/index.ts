@@ -14,7 +14,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { DEFAULT_TIMEOUT_MS, ZuunaClient } from "./client.js";
 import { buildToolRegistrations } from "./tools.js";
 
-export const SERVER_VERSION = "0.1.1";
+export const SERVER_VERSION = "0.1.2";
 
 function fail(message: string): never {
   // stderr only — stdout belongs to the MCP stdio transport.

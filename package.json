@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-zuuna",
-  "version": "0.1.1",
-  "description": "MCP server for Zuuna — agent-native board access for Claude Code, Cursor and Codex. Read boards, create/update/move cards, comment — over the Zuuna v1 API.",
+  "version": "0.1.2",
+  "description": "MCP server for Zuuna \u2014 agent-native board access for Claude Code, Cursor and Codex. Read boards, create/update/move cards, comment \u2014 over the Zuuna v1 API.",
   "license": "MIT",
   "author": "kenzotp",
   "type": "module",
@@ -51,5 +51,6 @@
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.35.0",
     "vitest": "^5.0.1"
-  }
+  },
+  "mcpName": "io.github.kenzotp/mcp-server-zuuna"
 }
