@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.kenzotp/mcp-server-zuuna",
+  "description": "MCP server for Zuuna \u2014 coding agents read and work your git-truth kanban board via the v1 API.",
+  "version": "0.1.2",
+  "repository": {
+    "url": "https://github.com/kenzotp/mcp-server-zuuna",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mcp-server-zuuna",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ZUUNA_API_TOKEN",
+          "description": "Bearer API token from your Zuuna workspace. Grant only the scopes the agent needs (boards:read + cards:read is enough for a read-only observer).",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "ZUUNA_BASE_URL",
+          "description": "Zuuna base URL. Defaults to https://app.zuuna.de.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "ZUUNA_TIMEOUT_MS",
+          "description": "Per-request timeout in milliseconds. Defaults to 15000.",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
