@@ -56,7 +56,7 @@ describe("zuuna_board", () => {
     expect(result.isError).toBeUndefined();
     expect(calls.map((c) => c.url)).toEqual([
       "https://zuuna.test/api/v1/boards/b1/columns",
-      "https://zuuna.test/api/v1/boards/b1/cards",
+      "https://zuuna.test/api/v1/boards/b1/cards?limit=200",
     ]);
     const json = (await resultJson(result)) as {
       board: { key: string };
@@ -68,6 +68,34 @@ describe("zuuna_board", () => {
     expect(json.cards[0]).toMatchObject({ key: "ZNA-2001", column: "Todo", priority: "HIGH" });
   });
 
+  it("caps the card list at one 200-card page and flags truncation with nextCursor", async () => {
+    const paged = { ...FIXTURE.cardsB1, nextCursor: "card1" };
+    const { tools, calls } = makeTools(
+      fixtureHandler({ "GET /api/v1/boards/b1/cards": { status: 200, json: paged } }),
+    );
+    const result = await callTool(tools, "zuuna_board", { board: "b1" });
+    expect(result.isError).toBeUndefined();
+    expect(calls[1].url).toBe("https://zuuna.test/api/v1/boards/b1/cards?limit=200");
+    const json = (await resultJson(result)) as { cardsTruncated?: boolean; nextCursor?: string };
+    expect(json.cardsTruncated).toBe(true);
+    expect(json.nextCursor).toBe("card1");
+  });
+
+  it("says nothing about truncation when the board fits in one page", async () => {
+    const { tools } = makeTools(fixtureHandler());
+    const result = await callTool(tools, "zuuna_board", { board: "b1" });
+    const json = (await resultJson(result)) as Record<string, unknown>;
+    expect("cardsTruncated" in json).toBe(false);
+    expect("nextCursor" in json).toBe(false);
+  });
+
+  it("passes cardsCursor through as the API's opaque cursor", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    const result = await callTool(tools, "zuuna_board", { board: "b1", cardsCursor: "card1" });
+    expect(result.isError).toBeUndefined();
+    expect(calls[1].url).toBe("https://zuuna.test/api/v1/boards/b1/cards?limit=200&cursor=card1");
+  });
+
   it("resolves a board KEY (case-insensitive) via the boards list after the direct probe 404s", async () => {
     const { tools, calls } = makeTools(fixtureHandler());
     const result = await callTool(tools, "zuuna_board", { board: "zna" });
@@ -76,7 +104,7 @@ describe("zuuna_board", () => {
       "/api/v1/boards/zna/columns", // direct probe misses
       "/api/v1/boards", // fallback list
       "/api/v1/boards/b1/columns",
-      "/api/v1/boards/b1/cards",
+      "/api/v1/boards/b1/cards?limit=200",
     ]);
     const json = (await resultJson(result)) as { board: { id: string } };
     expect(json.board.id).toBe("b1");
@@ -127,6 +155,18 @@ describe("zuuna_create_card", () => {
       body: { title: "New card", description: "Body" },
     });
     expect(await resultJson(result)).toMatchObject({ key: "ZNA-2020" });
+  });
+
+  it("passes idempotencyKey through for safe retries", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    const result = await callTool(tools, "zuuna_create_card", {
+      boardId: "b1",
+      title: "New card",
+      idempotencyKey: "order-4711-card",
+    });
+    expect(result.isError).toBeUndefined();
+    expect(calls[0].body).toEqual({ title: "New card", idempotencyKey: "order-4711-card" });
+    expect(await resultJson(result)).toMatchObject({ id: "card_new", key: "ZNA-2020" });
   });
 
   it("resolves boardKey and columnTitle before POSTing", async () => {

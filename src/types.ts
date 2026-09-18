@@ -53,7 +53,7 @@ export interface ZuunaColumnsResponse {
   columns: ZuunaColumn[];
 }
 
-/** Card entry from GET /api/v1/boards/{boardId}/cards (unpaged default: the full board). */
+/** Card entry from GET /api/v1/boards/{boardId}/cards (paged: 200 per page, board order only while unpaged). */
 export interface ZuunaBoardCard {
   id: string;
   key: string;
@@ -102,13 +102,18 @@ export interface ZuunaCardDetail {
   attachments: { id: string; originalName: string; mimeType: string; size: number; createdAt: string }[];
 }
 
-/** POST /api/v1/boards/{boardId}/cards and PATCH /api/v1/cards/{idOrKey} share this response shape. */
+/**
+ * POST /api/v1/boards/{boardId}/cards and PATCH /api/v1/cards/{idOrKey} share
+ * this response shape. A 201 answer carries every field; the POST's 200
+ * idempotent-replay answer (same idempotencyKey sent again) carries only
+ * `id` and `key`.
+ */
 export interface ZuunaCardWriteResult {
   id: string;
   key: string | null;
-  title: string;
-  status: string | null;
-  columnId: string | null;
+  title?: string;
+  status?: string | null;
+  columnId?: string | null;
 }
 
 /** POST /api/v1/cards/{cardId}/comments */
