@@ -115,19 +115,27 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
     {
       name: "zuuna_board",
       description:
-        "Get one board assembled: its columns (in order) and all its cards with key, title, column, priority and type. Accepts the board id or its key/title (e.g. the card prefix).",
+        "Get one board assembled: its columns (in order) and its cards with key, title, column, priority and type. The card list is capped at one 200-card page so a big board cannot flood the context; when more cards exist the response sets cardsTruncated and a nextCursor — pass that as cardsCursor for the next page. Accepts the board id or its key/title (e.g. the card prefix).",
       inputSchema: {
         board: z.string().min(1).describe("Board id, board key (card prefix) or board title."),
+        cardsCursor: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            "Opaque nextCursor from a previous zuuna_board response — fetches that board's next page of cards.",
+          ),
       },
       run: wrap(async (args) => {
         const resolved = await resolveBoard(client, args.board as string);
         // Reuse the columns the id-probe already fetched; otherwise both reads
-        // run in parallel. The unpaged card list is the full board.
+        // run in parallel. The card list is paged (200 per page — the v1 API's
+        // own MAX_PAGE_SIZE) so a huge board cannot flood the agent's context.
         const [columns, cards] = await Promise.all([
           resolved.columns ? Promise.resolve(resolved.columns) : client.columns(resolved.boardId),
-          client.boardCards(resolved.boardId),
+          client.boardCards(resolved.boardId, { cursor: args.cardsCursor as string | undefined }),
         ]);
-        return jsonResult({
+        const payload = {
           board: { id: columns.boardId, title: columns.title, key: columns.key, groupId: columns.groupId },
           columns: columns.columns,
           cards: cards.data.map((c) => ({
@@ -142,7 +150,13 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
             assignees: c.assignees,
             dueDate: c.dueDate,
           })),
-        });
+        };
+        // When the page is not the whole board, say so and hand back the
+        // cursor instead of implying the list was complete.
+        if (cards.nextCursor) {
+          return jsonResult({ ...payload, cardsTruncated: true, nextCursor: cards.nextCursor });
+        }
+        return jsonResult(payload);
       }),
     },
     {
@@ -157,7 +171,7 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
     {
       name: "zuuna_create_card",
       description:
-        "Create a card on a board. Title is required; give the target column by id or by title (omitted = the board's first column). Returns the new card's id and key.",
+        "Create a card on a board. Title is required; give the target column by id or by title (omitted = the board's first column). Returns the new card's id and key. Retries are safe: pass the same idempotencyKey again after a lost response or 5xx and the API returns the original card instead of a duplicate.",
       inputSchema: {
         title: z.string().min(1).describe("Card title (required)."),
         boardId: z.string().min(1).optional().describe("Board id (from zuuna_boards). Provide this or boardKey."),
@@ -165,6 +179,13 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
         description: z.string().nullable().optional().describe("Card description (plain text or sanitized HTML). null clears."),
         columnId: z.string().min(1).optional().describe("Target column id. Provide this or columnTitle."),
         columnTitle: z.string().min(1).optional().describe("Target column title (resolved against the board's columns)."),
+        idempotencyKey: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            'Client-chosen key for safe retries (e.g. "order-4711-card"). If this key was already used in this workspace, the API returns the ORIGINAL card (200) instead of creating a duplicate. Use a fresh key for each new card; reuse one key only for retries of the same logical card.',
+          ),
       },
       run: wrap(async (args) => {
         const title = args.title as string;
@@ -181,9 +202,15 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
           const cols = await client.columns(boardId);
           columnId = resolveColumn(cols.columns, args.columnTitle as string);
         }
-        const body: { title: string; description?: string | null; columnId?: string } = { title };
+        const body: {
+          title: string;
+          description?: string | null;
+          columnId?: string;
+          idempotencyKey?: string;
+        } = { title };
         if (args.description !== undefined) body.description = args.description as string | null;
         if (columnId) body.columnId = columnId;
+        if (args.idempotencyKey !== undefined) body.idempotencyKey = args.idempotencyKey as string;
         return jsonResult(await client.createCard(boardId, body));
       }),
     },

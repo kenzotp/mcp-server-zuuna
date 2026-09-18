@@ -4,7 +4,9 @@
  *
  * Config via environment:
  *   ZUUNA_API_TOKEN  (required)  Bearer API token from your Zuuna workspace
- *   ZUUNA_BASE_URL   (optional)  default https://app.zuuna.de
+ *   ZUUNA_BASE_URL   (optional)  default https://app.zuuna.de; must be an absolute
+ *                                http(s) URL (invalid values fail at startup) and a
+ *                                plain-http value prints a cleartext-token warning
  *   ZUUNA_TIMEOUT_MS (optional)  per-request timeout, default 15000
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -12,7 +14,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { DEFAULT_TIMEOUT_MS, ZuunaClient } from "./client.js";
 import { buildToolRegistrations } from "./tools.js";
 
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = "0.1.1";
 
 function fail(message: string): never {
   // stderr only — stdout belongs to the MCP stdio transport.

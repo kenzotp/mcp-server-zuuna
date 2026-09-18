@@ -22,14 +22,17 @@ suite("E2E against a live Zuuna (read-only: /me and /boards only)", () => {
     timeoutMs: 20_000,
   });
 
+  // Per-test timeouts (25 s) sit ABOVE the client's 20 s request timeout so a
+  // slow endpoint fails through the client's ZuunaNetworkError path — the
+  // behavior under test — instead of being cut off by the runner first.
   it("GET /api/v1/me returns the token identity", async () => {
     const me = await client.me();
     expect(me.tokenId).toBeTruthy();
     expect(Array.isArray(me.scopes)).toBe(true);
-  });
+  }, 25_000);
 
   it("GET /api/v1/boards returns a list", async () => {
     const res = await client.boards();
     expect(Array.isArray(res.data)).toBe(true);
-  });
+  }, 25_000);
 });
