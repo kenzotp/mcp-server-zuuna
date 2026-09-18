@@ -75,4 +75,54 @@ describe("ZuunaClient", () => {
   it("uses the documented default base URL", () => {
     expect(DEFAULT_BASE_URL).toBe("https://app.zuuna.de");
   });
+
+  it("requests the board card list paged at the 200-card API cap", async () => {
+    const { client, calls } = makeClient(() => ({ status: 200, json: FIXTURE.cardsB1 }));
+    await client.boardCards("b1");
+    expect(calls[0].url).toBe("https://zuuna.test/api/v1/boards/b1/cards?limit=200");
+  });
+
+  it("feeds the API's nextCursor back as the cursor", async () => {
+    const { client, calls } = makeClient(() => ({ status: 200, json: FIXTURE.cardsB1 }));
+    await client.boardCards("b1", { cursor: "card1" });
+    expect(calls[0].url).toBe("https://zuuna.test/api/v1/boards/b1/cards?limit=200&cursor=card1");
+  });
+
+  it("passes idempotencyKey through on create", async () => {
+    const { client, calls } = makeClient(() => ({ status: 201, json: FIXTURE.createdCard }));
+    await client.createCard("b1", { title: "New card", idempotencyKey: "order-4711-card" });
+    expect(calls[0].body).toEqual({ title: "New card", idempotencyKey: "order-4711-card" });
+  });
+
+  it("rejects an invalid base URL at construction (fail fast, not per tool call)", () => {
+    expect(() => new ZuunaClient({ baseUrl: "app.zuuna.de", token: "t" })).toThrow(
+      /Invalid ZUUNA_BASE_URL "app.zuuna.de".*absolute http\(s\) URL/,
+    );
+    expect(() => new ZuunaClient({ baseUrl: "ftp://zuuna.test", token: "t" })).toThrow(
+      /unsupported scheme "ftp:"/,
+    );
+  });
+
+  it("warns on stderr (never stdout) when the base URL is plain http", () => {
+    const original = console.error;
+    const seen: string[] = [];
+    console.error = (msg?: unknown) => {
+      seen.push(String(msg));
+    };
+    let warnOnly: ZuunaClient;
+    try {
+      warnOnly = new ZuunaClient({ baseUrl: "http://zuuna.test", token: "t" });
+    } finally {
+      console.error = original;
+    }
+    expect(warnOnly).toBeInstanceOf(ZuunaClient);
+    expect(seen.join("\n")).toMatch(/not HTTPS.*cleartext/s);
+  });
+
+  it("normalizes the base URL to exactly one trailing slash", async () => {
+    const { impl, calls } = mockFetch(() => ({ status: 200, json: FIXTURE.me }));
+    const client = new ZuunaClient({ baseUrl: "https://zuuna.test", token: "t", fetchImpl: impl });
+    await client.me();
+    expect(calls[0].url).toBe("https://zuuna.test/api/v1/me");
+  });
 });
