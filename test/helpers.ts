@@ -1,5 +1,6 @@
 import { ZuunaClient } from "../src/client.js";
-import { buildToolRegistrations, type ToolRegistration } from "../src/tools.js";
+import { allowedTools, buildToolRegistrations, resolveToolsForToken } from "../src/tools/index.js";
+import type { ToolRegistration } from "../src/tool-types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export interface MockCall {
@@ -9,9 +10,9 @@ export interface MockCall {
   body: unknown;
 }
 
-export type MockHandler = (
-  call: { url: string; method: string; body: unknown },
-) => { status: number; json: unknown } | { networkError: string };
+export type MockHandler = (call: { url: string; method: string; body: unknown }) =>
+  | { status: number; json: unknown }
+  | { networkError: string };
 
 /** A fetch impl that routes through `handler` and records every call. */
 export function mockFetch(handler: MockHandler): { impl: typeof fetch; calls: MockCall[] } {
@@ -47,11 +48,16 @@ export function makeClient(handler: MockHandler): { client: ZuunaClient; calls: 
 
 export function makeTools(handler: MockHandler): {
   tools: Map<string, ToolRegistration>;
+  all: ToolRegistration[];
+  client: ZuunaClient;
   calls: MockCall[];
 } {
   const { client, calls } = makeClient(handler);
-  return { tools: new Map(buildToolRegistrations(client).map((t) => [t.name, t])), calls };
+  const all = buildToolRegistrations(client);
+  return { tools: new Map(all.map((t) => [t.name, t])), all, client, calls };
 }
+
+export { allowedTools, resolveToolsForToken };
 
 export async function callTool(
   tools: Map<string, ToolRegistration>,
@@ -77,29 +83,32 @@ export const FIXTURE = {
   me: {
     tokenId: "tok_1",
     org: { id: "org1", product: "TEAM", plan: "team" },
-    scopes: ["boards:read", "cards:read", "cards:write", "comments:read", "comments:write"],
+    scopes: [
+      "boards:read",
+      "boards:write",
+      "cards:read",
+      "cards:write",
+      "comments:read",
+      "comments:write",
+      "time:read",
+      "time:write",
+      "git:write",
+      "releases:write",
+      "deployments:write",
+      "webhooks:manage",
+    ],
+    apiAccessEndsAt: null,
+  },
+  meReadOnly: {
+    tokenId: "tok_ro",
+    org: { id: "org1", product: "TEAM", plan: "team" },
+    scopes: ["boards:read", "cards:read", "comments:read", "time:read"],
     apiAccessEndsAt: null,
   },
   boards: {
     data: [
-      {
-        id: "b1",
-        title: "Big Marketing Relaunch",
-        key: "ZNA",
-        description: null,
-        groupId: "g1",
-        createdAt: "2026-09-01T09:00:00.000Z",
-        updatedAt: "2026-09-18T09:00:00.000Z",
-      },
-      {
-        id: "b2",
-        title: "Dev",
-        key: "DEV",
-        description: null,
-        groupId: "g1",
-        createdAt: "2026-09-01T09:00:00.000Z",
-        updatedAt: "2026-09-18T09:00:00.000Z",
-      },
+      { id: "b1", title: "Big Marketing Relaunch", key: "ZNA", description: null, groupId: "g1", createdAt: "2026-09-01T09:00:00.000Z", updatedAt: "2026-09-18T09:00:00.000Z" },
+      { id: "b2", title: "Dev", key: "DEV", description: null, groupId: "g1", createdAt: "2026-09-01T09:00:00.000Z", updatedAt: "2026-09-18T09:00:00.000Z" },
     ],
   },
   columnsB1: {
@@ -165,8 +174,10 @@ export const FIXTURE = {
 
 /**
  * Router over the fixture set: answers every known v1 route with its fixture
- * and everything else with the API's 404 envelope. `overrides` lets a test
- * replace any route's answer.
+ * and everything else with a generic 200 `{ ok: true }` (most tool calls in
+ * the full 67-tool suite only need to prove they hit the right method+path+
+ * body, not a specific response shape) or the API's 404 envelope when
+ * nothing at all matches. `overrides` lets a test replace any route's answer.
  */
 export function fixtureHandler(overrides: Record<string, { status: number; json: unknown }> = {}): MockHandler {
   return ({ url, method }) => {
@@ -201,6 +212,9 @@ export function fixtureHandler(overrides: Record<string, { status: number; json:
     if (method === "POST" && /^\/api\/v1\/cards\/ZNA-2001\/comments$/.test(path)) {
       return { status: 201, json: FIXTURE.comment };
     }
+    // Every other v1 route this package's 67 tools call — a generic ok
+    // envelope. Tests that need the exact response shape use `overrides`.
+    if (path.startsWith("/api/v1/")) return { status: 200, json: { ok: true } };
     return { status: 404, json: { error: "not_found", message: `No route: ${key}` } };
   };
 }

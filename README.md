@@ -18,18 +18,170 @@ Working and tested, and **published on npm** (`npx -y mcp-server-zuuna`) after a
 review of the token model, scopes and tool surface. Run from source (bottom) if you want
 to hack on it.
 
+## Hosted alternative
+
+The same 67 tools are also available with nothing to install: Zuuna runs a hosted MCP
+connector at [app.zuuna.de/mcp](https://app.zuuna.de/mcp) (OAuth sign-in, Developer plan).
+Point Claude Code, Cursor or Codex at that URL directly and skip the token and the npx
+line below. This package exists for the case that does need a local process: a CI runner,
+an air-gapped agent, or a workflow that wants a plain bearer token instead of an OAuth
+sign-in. See [Kanban board for AI agents](https://zuuna.de/en/kanban-board-for-ai-agents?utm_source=npm&utm_medium=referral&utm_campaign=mcp-server-readme)
+for both routes side by side.
+
 ## Tools
 
-| Tool | What it does | Grounded in (Zuuna v1 API) | Scopes needed |
-|---|---|---|---|
-| `zuuna_me` | Token identity: org, plan, scopes, grace-window deadline | `GET /api/v1/me` | any token |
-| `zuuna_boards` | List boards (non-archived, non-private) | `GET /api/v1/boards` | `boards:read` |
-| `zuuna_board` | One board assembled: columns in order + cards (key, title, column, priority, type) — capped at one 200-card page; when more exist it returns `cardsTruncated: true` + `nextCursor` (pass as `cardsCursor`) | `GET /api/v1/boards/{id}/columns` + `GET /api/v1/boards/{id}/cards?limit=200` | `boards:read`, `cards:read` |
-| `zuuna_card` | Full card detail by display key (`ZNA-2001`) or id | `GET /api/v1/cards/{idOrKey}` | `cards:read` |
-| `zuuna_create_card` | Create a card (title required; column by id or title; board by id or key; optional `idempotencyKey` makes retries safe) | `POST /api/v1/boards/{id}/cards` | `cards:write` (+ `boards:read` for key/column resolution) |
-| `zuuna_update_card` | Edit title / description / priority (`HIGHEST\|HIGH\|NORMAL\|LOW\|LOWEST`, null clears) | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
-| `zuuna_move_card` | Move a card to a column, by id or title | `PATCH /api/v1/cards/{idOrKey}` (after `cards:read` for title resolution) | `cards:read`, `cards:write` |
-| `zuuna_comment` | Comment on a card (author = the token's creator) | `POST /api/v1/cards/{idOrKey}/comments` | `comments:write` |
+67 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
+what else the token must carry. The 8 marked **destructive** refuse to run without an
+explicit `confirm: true` argument.
+
+### Identity
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_me` | `GET /api/v1/me` | none |
+
+### Groups
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_groups` | `GET /api/v1/groups` | `boards:read` |
+| `zuuna_list_group_members` | `GET /api/v1/groups/{groupId}/members` | `boards:read` |
+| `zuuna_list_epics` | `GET /api/v1/groups/{groupId}/epics` | `boards:read` |
+| `zuuna_list_group_cards` | `GET /api/v1/groups/{groupId}/cards` | `cards:read` |
+
+### Boards
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_boards` | `GET /api/v1/boards` | `boards:read` |
+| `zuuna_board` | `GET /api/v1/boards/{id}/columns` + `GET /api/v1/boards/{id}/cards` | `boards:read`, `cards:read` |
+| `zuuna_create_board` | `POST /api/v1/boards` | `boards:write` |
+| `zuuna_list_columns` | `GET /api/v1/boards/{boardId}/columns` | `boards:read` |
+| `zuuna_create_column` | `POST /api/v1/boards/{boardId}/columns` | `boards:write` |
+| `zuuna_list_automations` | `GET /api/v1/boards/{boardId}/automations` | `boards:read` |
+
+### Cards
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_card` | `GET /api/v1/cards/{idOrKey}` | `cards:read` |
+| `zuuna_list_board_cards` | `GET /api/v1/boards/{boardId}/cards` | `cards:read` |
+| `zuuna_create_card` | `POST /api/v1/boards/{boardId}/cards` | `cards:write` |
+| `zuuna_update_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
+| `zuuna_move_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
+| `zuuna_move_card_to_board` | `POST /api/v1/cards/{cardId}/move` | `cards:write` |
+| `zuuna_archive_card` | `POST /api/v1/cards/{cardId}/archive` | `cards:write` |
+| `zuuna_unarchive_card` | `DELETE /api/v1/cards/{cardId}/archive` | `cards:write` |
+| `zuuna_delete_card` **(destructive)** | `DELETE /api/v1/cards/{cardId}` | `cards:write` |
+| `zuuna_restore_card` | `POST /api/v1/cards/{cardId}/restore` | `cards:write` |
+
+### Comments
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_comments` | `GET /api/v1/cards/{cardId}/comments` | `comments:read` |
+| `zuuna_comment` | `POST /api/v1/cards/{cardId}/comments` | `comments:write` |
+
+### Checklist
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_checklist` | `GET /api/v1/cards/{cardId}/checklist` | `cards:read` |
+| `zuuna_add_checklist_item` | `POST /api/v1/cards/{cardId}/checklist` | `cards:write` |
+| `zuuna_update_checklist_item` | `PATCH /api/v1/cards/{cardId}/checklist/{itemId}` | `cards:write` |
+| `zuuna_delete_checklist_item` **(destructive)** | `DELETE /api/v1/cards/{cardId}/checklist/{itemId}` | `cards:write` |
+
+### Relations
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_relations` | `GET /api/v1/cards/{cardId}/relations` | `cards:read` |
+| `zuuna_add_relation` | `POST /api/v1/cards/{cardId}/relations` | `cards:write` |
+| `zuuna_delete_relation` **(destructive)** | `DELETE /api/v1/cards/{cardId}/relations/{linkId}` | `cards:write` |
+
+### Attachments
+
+Metadata only, both ways: no tool here ever reads or writes file bytes (see "Honest scope" below).
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_attachments` | `GET /api/v1/cards/{cardId}/attachments` | `cards:read` |
+| `zuuna_get_attachment` | `GET /api/v1/cards/{cardId}/attachments/{attachmentId}` (metadata only) | `cards:read` |
+| `zuuna_delete_attachment` **(destructive)** | `DELETE /api/v1/cards/{cardId}/attachments/{attachmentId}` | `cards:write` |
+
+### Time tracking
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_card_time` | `GET /api/v1/cards/{cardId}/time` | `time:read` |
+| `zuuna_log_time` | `POST /api/v1/cards/{cardId}/time` | `time:write` |
+| `zuuna_start_timer` | `POST /api/v1/cards/{cardId}/time` | `time:write` |
+| `zuuna_stop_timer` | `POST /api/v1/cards/{cardId}/time` | `time:write` |
+| `zuuna_list_active_timers` | `GET /api/v1/time/active` | `time:read` |
+| `zuuna_update_time_entry` | `PATCH /api/v1/time/{entryId}` | `time:write` |
+| `zuuna_delete_time_entry` **(destructive)** | `DELETE /api/v1/time/{entryId}` | `time:write` |
+| `zuuna_import_time_entries` | `POST /api/v1/time/entries` | `time:write` |
+
+### Sprints
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_sprints` | `GET /api/v1/sprints` | `boards:read` |
+| `zuuna_get_sprint` | `GET /api/v1/sprints/{sprintId}` | `boards:read` |
+| `zuuna_create_sprint` | `POST /api/v1/sprints` | `cards:write` |
+| `zuuna_update_sprint` | `PATCH /api/v1/sprints/{sprintId}` | `cards:write` |
+| `zuuna_add_cards_to_sprint` | `POST /api/v1/sprints/{sprintId}/cards` | `cards:write` |
+| `zuuna_remove_card_from_sprint` | `DELETE /api/v1/sprints/{sprintId}/cards/{cardId}` | `cards:write` |
+
+### Recurring cards
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_recurring_cards` | `GET /api/v1/boards/{boardId}/recurring` | `boards:read` |
+| `zuuna_create_recurring_card` | `POST /api/v1/boards/{boardId}/recurring` | `cards:write` |
+| `zuuna_update_recurring_card` | `PATCH /api/v1/recurring/{id}` | `cards:write` |
+| `zuuna_delete_recurring_card` **(destructive)** | `DELETE /api/v1/recurring/{id}` | `cards:write` |
+
+### Releases
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_releases` | `GET /api/v1/releases` | `boards:read` |
+| `zuuna_get_release` | `GET /api/v1/releases/{releaseId}` | `boards:read` |
+| `zuuna_create_release` | `POST /api/v1/releases` | `releases:write` |
+| `zuuna_update_release` | `PATCH /api/v1/releases/{releaseId}` | `releases:write` |
+| `zuuna_delete_release` **(destructive)** | `DELETE /api/v1/releases/{releaseId}` | `releases:write` |
+
+### Deployments
+
+Observation only: there is no "trigger a deploy" tool, on the hosted connector either (see "Honest scope").
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_deployments` | `GET /api/v1/deployments` | `boards:read` |
+| `zuuna_report_deployment` | `POST /api/v1/deployments` | `deployments:write` |
+
+### Webhooks
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_list_webhooks` | `GET /api/v1/webhooks` | `webhooks:manage` |
+| `zuuna_create_webhook` | `POST /api/v1/webhooks` | `webhooks:manage` |
+| `zuuna_update_webhook` | `PATCH /api/v1/webhooks/{id}` | `webhooks:manage` |
+| `zuuna_delete_webhook` **(destructive)** | `DELETE /api/v1/webhooks/{id}` | `webhooks:manage` |
+| `zuuna_test_webhook` | `POST /api/v1/webhooks/{id}/test` | `webhooks:manage` |
+| `zuuna_list_webhook_deliveries` | `GET /api/v1/webhooks/{id}/deliveries` | `webhooks:manage` |
+
+### Git on board
+
+Link commits, branches, PRs and CI status to cards. None of these move a card by
+themselves (see "Honest scope").
+
+| Tool | Method + path | Scopes |
+|---|---|---|
+| `zuuna_link_git_branches` | `POST /api/v1/git/branches` | `git:write` |
+| `zuuna_report_ci_checks` | `POST /api/v1/git/checks` | `git:write` |
+| `zuuna_record_git_events` | `POST /api/v1/git/events` | `git:write` |
 
 Behavioral notes:
 
@@ -47,6 +199,14 @@ Behavioral notes:
 - `zuuna_create_card` accepts an optional client-chosen `idempotencyKey`: re-sending the
   same key after a lost response or a 5xx returns the original card (200) instead of
   minting a duplicate.
+- At startup the server reads its own token's scopes (`GET /api/v1/me`) and registers only
+  the tools they cover, the same scope gating the hosted connector applies. If that read
+  fails (no network yet, an invalid token) it registers every tool instead and prints one
+  line to stderr saying so; every call is still enforced by the API regardless of what got
+  registered.
+- Five prompts ship alongside the tools (`session_start`, `session_end`, `triage_board`,
+  `standup_summary`, `plan_sprint`), starting points for a client that surfaces MCP
+  prompts, not required for using the tools directly.
 
 ## Setup
 
@@ -146,9 +306,21 @@ claude mcp add zuuna -e ZUUNA_API_TOKEN=zk_live_your_token -- node /path/to/mcp-
 
 ## Honest scope
 
-This server is deliberately **board I/O only**. There are no deploy tools and no git-write
-tools — deploys and card movement from commits belong to Zuuna's git-truth engine, not to
-the agent. Agents do the coding; Zuuna keeps the board honest about it.
+There is still no tool that triggers a deploy. `zuuna_report_deployment` (`deployments:write`)
+only records what a pipeline already did (building, succeeded, failed); actually shipping
+stays with your own CI, not the agent.
+
+There are now three `git:write` tools, and what they do is narrower than the name suggests:
+
+- `zuuna_record_git_events` and `zuuna_report_ci_checks` attach commit/branch/PR history and
+  CI status to whichever card a smart-commit reference or description names.
+- `zuuna_link_git_branches` replaces a repo's whole in-flight-branches snapshot in one call.
+
+None of the three **moves a card**. A card moves only because a board rule matched it (see
+"The loop" above) or because `zuuna_move_card` / `zuuna_update_card` was called directly.
+Automations themselves stay read-only here too (`zuuna_list_automations`): no tool creates,
+edits or disables one. Attachments are metadata-only both ways: no tool reads or writes a
+file's bytes, uploading included, the same restriction the hosted connector carries.
 
 ## Development
 
