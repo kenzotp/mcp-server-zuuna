@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/kenzotp/mcp-server-zuuna/actions/workflows/ci.yml/badge.svg)](https://github.com/kenzotp/mcp-server-zuuna/actions/workflows/ci.yml)
 
-**Agent-native board access for [Zuuna](https://app.zuuna.de)** — a
+**Agent-native board access for [Zuuna](https://zuuna.de/en/kanban-board-for-ai-agents?utm_source=npm&utm_medium=referral&utm_campaign=mcp-server-readme)** — a
 [Model Context Protocol](https://modelcontextprotocol.io) server that lets coding agents
 (Claude Code, Cursor, Codex) read and work a Zuuna board directly.
 
@@ -65,7 +65,7 @@ The server is configured per client via environment variables:
 
 ```sh
 claude mcp add zuuna \
-  -e ZUUNA_API_TOKEN=zuuna_your_token \
+  -e ZUUNA_API_TOKEN=zk_live_your_token \
   -- npx -y mcp-server-zuuna
 ```
 
@@ -77,7 +77,7 @@ or in the project's `.mcp.json`:
     "zuuna": {
       "command": "npx",
       "args": ["-y", "mcp-server-zuuna"],
-      "env": { "ZUUNA_API_TOKEN": "zuuna_your_token" }
+      "env": { "ZUUNA_API_TOKEN": "zk_live_your_token" }
     }
   }
 }
@@ -93,7 +93,7 @@ In `~/.cursor/mcp.json` (or the project's `.cursor/mcp.json`):
     "zuuna": {
       "command": "npx",
       "args": ["-y", "mcp-server-zuuna"],
-      "env": { "ZUUNA_API_TOKEN": "zuuna_your_token" }
+      "env": { "ZUUNA_API_TOKEN": "zk_live_your_token" }
     }
   }
 }
@@ -107,7 +107,7 @@ In `~/.codex/config.toml`:
 [mcp_servers.zuuna]
 command = "npx"
 args = ["-y", "mcp-server-zuuna"]
-env = { "ZUUNA_API_TOKEN" = "zuuna_your_token" }
+env = { "ZUUNA_API_TOKEN" = "zk_live_your_token" }
 ```
 
 ### Run from source
@@ -120,7 +120,7 @@ cd mcp-server-zuuna && npm install && npm run build
 then point the client at the built binary instead of `npx`:
 
 ```sh
-claude mcp add zuuna -e ZUUNA_API_TOKEN=zuuna_your_token -- node /path/to/mcp-server-zuuna/dist/index.js
+claude mcp add zuuna -e ZUUNA_API_TOKEN=zk_live_your_token -- node /path/to/mcp-server-zuuna/dist/index.js
 ```
 
 ## The loop
@@ -128,8 +128,21 @@ claude mcp add zuuna -e ZUUNA_API_TOKEN=zuuna_your_token -- node /path/to/mcp-se
 1. `zuuna_board` — the agent sees the board and picks a card (or you tell it: "do ZNA-2001").
 2. The agent codes in your repo with its own tools, referencing the card key in commits.
 3. The PR merges — and **git truth moves the card**: Zuuna's git integration (webhooks/CLI)
-   advances the card through its columns. The agent never has to touch the board manually,
+   links the commits and the PR to the card, and a rule on the board (for example "PR merged
+   → move to Done") moves it. Linking works out of the box; the move is one rule you add once
+   under the board's Automations. After that the agent never has to touch the board by hand,
    and the board cannot drift from the repository.
+
+## Guides
+
+- [Kanban board for AI agents](https://zuuna.de/en/kanban-board-for-ai-agents?utm_source=npm&utm_medium=referral&utm_campaign=mcp-server-readme): the agent
+  sets up the board, writes and moves cards, comments and logs its time; the board's rules
+  carry the cards from there.
+- [Claude Code project management between sessions](https://zuuna.de/en/claude-code-project-management?utm_source=npm&utm_medium=referral&utm_campaign=mcp-server-readme):
+  a `CLAUDE.md` routine that keeps an app's plan on the board, so each new session starts
+  where the last one stopped.
+- [Zuuna for AI agents](https://zuuna.de/en/agents?utm_source=npm&utm_medium=referral&utm_campaign=mcp-server-readme): the loop from card to merged PR,
+  in English and German.
 
 ## Honest scope
 
@@ -150,7 +163,7 @@ Optional live smoke test, strictly read-only (`GET /me` and `GET /boards` only �
 is ever created, moved or commented):
 
 ```sh
-ZUUNA_E2E=1 ZUUNA_API_TOKEN=zuuna_your_token npm run test:e2e
+ZUUNA_E2E=1 ZUUNA_API_TOKEN=zk_live_your_token npm run test:e2e
 ```
 
 Requires Node.js >= 20.
