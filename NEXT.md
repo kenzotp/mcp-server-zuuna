@@ -1,1 +1,1 @@
-Review ZNA-2155 tool-parity branch (67 tools, v0.2.0), then merge
+Publish 0.2.0 to npm (67 tools) on the owner's go
