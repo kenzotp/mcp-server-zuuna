@@ -9,7 +9,7 @@
 > Agents work the board. Git keeps it honest.
 >
 > The agent reads the board via this MCP server, does the work in the repo with its own
-> coding tools, and when the PR merges, Zuuna's git integration moves the card. Zuuna
+> coding tools, and when the PR merges, a rule on your Zuuna board moves the card. Zuuna
 > provides the interface and the verifiable board truth — the agent writes the code, not Zuuna.
 
 ## Status
