@@ -1,1 +1,1 @@
-— (published: npm + Glama + Smithery; registry-listings PR #3 merged 09-18)
+Review ZNA-2155 tool-parity branch (67 tools, v0.2.0), then merge

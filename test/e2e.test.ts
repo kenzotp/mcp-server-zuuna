@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ZuunaClient } from "../src/client.js";
+import type { ZuunaBoardsResponse, ZuunaMe } from "../src/types.js";
 
 /**
  * OPTIONAL live E2E — strictly READ-ONLY.
@@ -26,13 +27,13 @@ suite("E2E against a live Zuuna (read-only: /me and /boards only)", () => {
   // slow endpoint fails through the client's ZuunaNetworkError path — the
   // behavior under test — instead of being cut off by the runner first.
   it("GET /api/v1/me returns the token identity", async () => {
-    const me = await client.me();
+    const me = await client.request<ZuunaMe>("GET", "/api/v1/me");
     expect(me.tokenId).toBeTruthy();
     expect(Array.isArray(me.scopes)).toBe(true);
   }, 25_000);
 
   it("GET /api/v1/boards returns a list", async () => {
-    const res = await client.boards();
+    const res = await client.request<ZuunaBoardsResponse>("GET", "/api/v1/boards");
     expect(Array.isArray(res.data)).toBe(true);
   }, 25_000);
 });

@@ -1,13 +1,3 @@
-import type {
-  ZuunaBoardCardsResponse,
-  ZuunaBoardsResponse,
-  ZuunaCardDetail,
-  ZuunaCardWriteResult,
-  ZuunaColumnsResponse,
-  ZuunaCommentResult,
-  ZuunaMe,
-} from "./types.js";
-
 /** The API answered with a non-2xx status. `message` is the API's own message. */
 export class ZuunaApiError extends Error {
   readonly status: number;
@@ -34,18 +24,27 @@ export const DEFAULT_BASE_URL = "https://app.zuuna.de";
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
- * Page size for the board card list: the v1 API's own MAX_PAGE_SIZE (it clamps
- * any larger `?limit`). One page keeps a big board from flooding an agent's
- * context; the response's `nextCursor` says when more cards exist.
+ * Page size zuuna_board pins its card page at: the v1 API's own MAX_PAGE_SIZE
+ * (it clamps any larger `?limit`). One page keeps a big board from flooding an
+ * agent's context; the response's `nextCursor` says when more cards exist.
  */
 export const BOARD_CARDS_PAGE_SIZE = 200;
+
+export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
+export interface RequestOptions {
+  /** Query string params. `undefined` values are omitted (never sent as "undefined"). */
+  query?: Record<string, string | number | boolean | undefined>;
+  /** JSON request body. Omitted entirely (no Content-Type either) when undefined. */
+  body?: unknown;
+}
 
 /**
  * Validate and normalize a base URL: it must parse as an absolute http(s) URL.
  * Throws a plain Error with a clear message so the server can fail fast in the
  * constructor (i.e. at startup) instead of throwing a bare `new URL()` error
  * from the middle of a tool call. Returns the URL with exactly one trailing
- * slash, which is what `request()` joins paths against.
+ * slash, which is what `send()` joins paths against.
  */
 export function validateBaseUrl(raw: string): string {
   let url: URL;
@@ -77,10 +76,12 @@ export interface ZuunaClientOptions {
 }
 
 /**
- * Thin typed client over the Zuuna v1 API. One request, zero retries: 4xx
- * answers are surfaced as ZuunaApiError carrying the API's own message, and a
- * lost network / timeout becomes ZuunaNetworkError. Callers decide what to do —
- * the server never silently retries a write.
+ * Thin generic client over the Zuuna v1 API. One request, zero retries: 4xx/5xx
+ * answers are surfaced as ZuunaApiError carrying the API's own status, code and
+ * message — the same tool-error mapping the hosted MCP endpoint uses
+ * (kanban-app src/lib/mcp/errors.ts) — and a lost network / timeout becomes
+ * ZuunaNetworkError. Callers decide what to do — the server never silently
+ * retries a write.
  */
 export class ZuunaClient {
   private readonly baseUrl: string;
@@ -104,93 +105,55 @@ export class ZuunaClient {
     }
   }
 
-  // ---- endpoint methods (grounded in the v1 routes) ----
-
-  /** GET /api/v1/me — any valid token. */
-  me(): Promise<ZuunaMe> {
-    return this.request("GET", "/api/v1/me");
-  }
-
-  /** GET /api/v1/boards — scope boards:read. Unpaged by default = the full list. */
-  boards(): Promise<ZuunaBoardsResponse> {
-    return this.request("GET", "/api/v1/boards");
-  }
-
-  /** GET /api/v1/boards/{boardId}/columns — scope boards:read. */
-  columns(boardId: string): Promise<ZuunaColumnsResponse> {
-    return this.request("GET", `/api/v1/boards/${encodeURIComponent(boardId)}/columns`);
+  /**
+   * Call a v1 endpoint and parse its JSON response. `path` starts with
+   * "/api/v1/..." (own leading slash trimmed before joining against baseUrl).
+   */
+  async request<T = unknown>(method: HttpMethod, path: string, opts: RequestOptions = {}): Promise<T> {
+    const res = await this.send(method, path, opts);
+    try {
+      return (await res.json()) as T;
+    } catch (err) {
+      throw new ZuunaNetworkError(`The Zuuna API at ${path} returned a non-JSON response.`, { cause: err });
+    }
   }
 
   /**
-   * GET /api/v1/boards/{boardId}/cards — scope cards:read. Paged at
-   * BOARD_CARDS_PAGE_SIZE (the API clamps at its MAX_PAGE_SIZE anyway), so a
-   * huge board comes back one context-friendly page at a time: when the answer
-   * carries a `nextCursor`, more cards exist — pass it back as `cursor`.
+   * Call a v1 endpoint and return the raw, already-ok Response — for the one
+   * route (attachment download) whose body is not JSON. Non-2xx answers still
+   * throw ZuunaApiError exactly like `request()`.
    */
-  boardCards(boardId: string, opts?: { cursor?: string }): Promise<ZuunaBoardCardsResponse> {
-    const params = new URLSearchParams({ limit: String(BOARD_CARDS_PAGE_SIZE) });
-    if (opts?.cursor) params.set("cursor", opts.cursor);
-    return this.request(
-      "GET",
-      `/api/v1/boards/${encodeURIComponent(boardId)}/cards?${params.toString()}`,
-    );
-  }
-
-  /** GET /api/v1/cards/{idOrKey} — scope cards:read. The handle accepts a cuid OR a display key ("ZNA-123"). */
-  card(idOrKey: string): Promise<ZuunaCardDetail> {
-    return this.request("GET", `/api/v1/cards/${encodeURIComponent(idOrKey)}`);
-  }
-
-  /**
-   * POST /api/v1/boards/{boardId}/cards — scope cards:write. `idempotencyKey`
-   * (v1 ZNA-556) makes retries safe: re-sending the same key after a lost
-   * response or a 5xx returns the ORIGINAL card (200) instead of minting a
-   * duplicate.
-   */
-  createCard(
-    boardId: string,
-    input: { title: string; description?: string | null; columnId?: string; idempotencyKey?: string },
-  ): Promise<ZuunaCardWriteResult> {
-    return this.request("POST", `/api/v1/boards/${encodeURIComponent(boardId)}/cards`, input);
-  }
-
-  /**
-   * PATCH /api/v1/cards/{idOrKey} — scope cards:write. Only the sent fields
-   * change. `columnId` moves the card (the v1 PATCH validates it belongs to
-   * the card's board and enforces HARD WIP limits).
-   */
-  updateCard(
-    idOrKey: string,
-    patch: { title?: string; description?: string | null; priority?: string | null; columnId?: string },
-  ): Promise<ZuunaCardWriteResult> {
-    return this.request("PATCH", `/api/v1/cards/${encodeURIComponent(idOrKey)}`, patch);
-  }
-
-  /** POST /api/v1/cards/{cardId}/comments — scope comments:write. */
-  addComment(idOrKey: string, body: string): Promise<ZuunaCommentResult> {
-    return this.request("POST", `/api/v1/cards/${encodeURIComponent(idOrKey)}/comments`, { body });
+  async requestRaw(method: HttpMethod, path: string, opts: RequestOptions = {}): Promise<Response> {
+    return this.send(method, path, opts);
   }
 
   // ---- plumbing ----
 
-  private async request<T>(
-    method: "GET" | "POST" | "PATCH",
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    const url = new URL(path.replace(/^\//, ""), this.baseUrl).toString();
+  private buildUrl(path: string, query?: RequestOptions["query"]): string {
+    const url = new URL(path.replace(/^\//, ""), this.baseUrl);
+    if (query) {
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined) url.searchParams.set(key, String(value));
+      }
+    }
+    return url.toString();
+  }
+
+  /** Does the fetch, timeout and error-envelope handling shared by both public methods. Returns only ok Responses — never-ok throws before returning. */
+  private async send(method: HttpMethod, path: string, opts: RequestOptions): Promise<Response> {
+    const url = this.buildUrl(path, opts.query);
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,
       Accept: "application/json",
     };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (opts.body !== undefined) headers["Content-Type"] = "application/json";
 
     let res: Response;
     try {
       res = await this.fetchImpl(url, {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (err) {
@@ -219,10 +182,6 @@ export class ZuunaClient {
       throw new ZuunaApiError(res.status, code, message);
     }
 
-    try {
-      return (await res.json()) as T;
-    } catch (err) {
-      throw new ZuunaNetworkError(`The Zuuna API at ${url} returned a non-JSON response.`, { cause: err });
-    }
+    return res;
   }
 }
