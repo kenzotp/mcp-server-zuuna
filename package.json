@@ -17,6 +17,7 @@
   "engines": {
     "node": ">=20"
   },
+  "homepage": "https://zuuna.de/en/kanban-board-for-ai-agents?utm_source=npm&utm_medium=bio&utm_campaign=mcp-server",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kenzotp/mcp-server-zuuna.git"
