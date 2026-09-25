@@ -25,7 +25,7 @@ import type { ZuunaClient } from "../client.js";
 import type { ToolRegistration } from "../tool-types.js";
 import type { ZuunaMe } from "../types.js";
 
-/** The full 69-tool set, built against one client (one bearer token per process). */
+/** The full 70-tool set, built against one client (one bearer token per process). */
 export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] {
   const allTools: ToolRegistration[] = [
     ...meTools(client, () => allTools),

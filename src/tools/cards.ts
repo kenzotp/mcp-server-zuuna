@@ -153,7 +153,7 @@ label: z.string().optional().describe("A tag option id, or a fieldId:optionId to
     {
       name: "zuuna_update_card",
       description:
-        "Edit a card. Only the fields you send change: title, description, priority, type, dueDate, startDate, estimateSeconds, storyPoints, ready, columnId (move within the SAME board — a cross-board move is zuuna_move_card_to_board), assigneeIds (REPLACES the full set; [] clears everyone), customFields (object keyed by field id; null/empty clears one).",
+        "Edit a card. Only the fields you send change: title, description, priority, type, dueDate, startDate, estimateSeconds, storyPoints, ready, columnId (move within the SAME board — a cross-board move is zuuna_move_card_to_board), assigneeIds (REPLACES the full set; [] clears everyone), customFields (object keyed by field id; null/empty clears one — zuuna_list_board_fields names the ids and the option vocabulary).",
       inputSchema: {
         card: cardRef,
         title: z.string().min(1).optional(),
