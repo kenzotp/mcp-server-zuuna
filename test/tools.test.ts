@@ -43,14 +43,23 @@ const DESTRUCTIVE_TOOLS = [
 ];
 
 describe("the full tool set", () => {
-  it("has exactly 69 tools, matching the hosted MCP connector", () => {
+  it("has exactly 70 tools, matching the hosted MCP connector", () => {
     const { all } = makeTools(fixtureHandler());
-    expect(all).toHaveLength(69);
+    expect(all).toHaveLength(70);
   });
 
   it("every tool name is unique", () => {
     const { all } = makeTools(fixtureHandler());
     expect(new Set(all.map((t) => t.name)).size).toBe(all.length);
+  });
+});
+
+describe("zuuna_list_board_fields", () => {
+  it("GETs the board's fields path", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_list_board_fields", { boardId: "b1" });
+    const call = calls.find((c) => c.url.includes("/api/v1/boards/b1/fields"))!;
+    expect(call.method).toBe("GET");
   });
 });
 

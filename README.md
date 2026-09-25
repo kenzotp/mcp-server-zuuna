@@ -20,7 +20,7 @@ to hack on it.
 
 ## Hosted alternative
 
-The same 69 tools are also available with nothing to install: Zuuna runs a hosted MCP
+The same 70 tools are also available with nothing to install: Zuuna runs a hosted MCP
 connector at [app.zuuna.de/mcp](https://app.zuuna.de/mcp) (OAuth sign-in, Developer plan).
 Point Claude Code, Cursor or Codex at that URL directly and skip the token and the npx
 line below. This package exists for the case that does need a local process: a CI runner,
@@ -30,7 +30,7 @@ for both routes side by side.
 
 ## Tools
 
-69 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
+70 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
 what else the token must carry. The 8 marked **destructive** refuse to run without an
 explicit `confirm: true` argument.
 
@@ -57,6 +57,7 @@ explicit `confirm: true` argument.
 | `zuuna_board` | `GET /api/v1/boards/{id}/columns` + `GET /api/v1/boards/{id}/cards` | `boards:read`, `cards:read` |
 | `zuuna_create_board` | `POST /api/v1/boards` | `boards:write` |
 | `zuuna_list_columns` | `GET /api/v1/boards/{boardId}/columns` | `boards:read` |
+| `zuuna_list_board_fields` | `GET /api/v1/boards/{boardId}/fields` | `boards:read` |
 | `zuuna_create_column` | `POST /api/v1/boards/{boardId}/columns` | `boards:write` |
 | `zuuna_list_automations` | `GET /api/v1/boards/{boardId}/automations` | `boards:read` |
 

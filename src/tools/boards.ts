@@ -121,6 +121,19 @@ export function boardTools(client: ZuunaClient): ToolRegistration[] {
       ),
     },
     {
+      name: "zuuna_list_board_fields",
+      description:
+        "Read the custom fields attached to a board: id, name, type, in display order. For SELECT, MULTISELECT and TAGS fields, options is the option vocabulary a card's customFields value may use; for every other type options is null. update_card's customFields argument is keyed by these field ids.",
+      inputSchema: { boardId },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      requiredScopes: ["boards:read"],
+      run: wrap(async (args) =>
+        jsonResult(
+          await client.request("GET", `/api/v1/boards/${encodeURIComponent(String(args.boardId))}/fields`),
+        ),
+      ),
+    },
+    {
       name: "zuuna_list_automations",
       description:
         "Read a board's automation rules: trigger, conditions, actions, enabled, recent run outcomes. Read-only — automations cannot be created or edited through this server, only inspected. A sendWebhook action's URL is redacted (it can carry a chat-app incoming-webhook secret).",
