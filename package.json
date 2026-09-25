@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-zuuna",
   "version": "0.2.1",
-  "description": "MCP server for Zuuna \u2014 agent-native board access for Claude Code, Cursor and Codex. 67 tools over the Zuuna v1 API: boards, cards, comments, checklists, relations, attachments, time tracking, sprints, recurring cards, releases, deployments, webhooks and git-on-board linking.",
+  "description": "MCP server for Zuuna \u2014 agent-native board access for Claude Code, Cursor and Codex. 73 tools over the Zuuna v1 API: boards, cards, comments, checklists, relations, attachments, time tracking, sprints, recurring cards, releases, deployments, webhooks and git-on-board linking.",
   "license": "MIT",
   "author": "kenzotp",
   "type": "module",
