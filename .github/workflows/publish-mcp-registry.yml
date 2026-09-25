@@ -1,4 +1,7 @@
-name: Publish to MCP Registry
+# One tag = one release: npm first, then the MCP Registry (which checks that the npm
+# version exists). npm auth is Trusted Publishing (OIDC, no token): configured on
+# npmjs.com for THIS workflow file name, so do not rename the file.
+name: Release (npm + MCP Registry)
 
 on:
   workflow_dispatch:
@@ -15,6 +18,45 @@ jobs:
     steps:
       # actions/checkout v4.3.1
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      # actions/setup-node v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing needs npm >= 11.5.1; node 22 ships npm 10.
+      - name: Upgrade npm
+        run: npm install -g npm@11
+
+      - name: Install
+        run: npm ci
+
+      - name: Tag matches package.json
+        run: |
+          V="$(node -p 'require("./package.json").version')"
+          [ "${GITHUB_REF_NAME}" = "v$V" ] || { echo "tag ${GITHUB_REF_NAME} != package.json v$V"; exit 1; }
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+
+      # prepublishOnly wipes dist/ and rebuilds. Skipped when the version is already
+      # on npm, so a re-run only retries the registry half.
+      - name: Publish to npm
+        run: |
+          if npm view "mcp-server-zuuna@$VERSION" version >/dev/null 2>&1; then
+            echo "mcp-server-zuuna@$VERSION already on npm, skipping"
+          else
+            npm publish
+          fi
+
+      # The registry rejects a version npm does not serve yet (that race failed
+      # the first v0.2.1 run), so wait for it.
+      - name: Wait until npm serves the version
+        run: |
+          for i in $(seq 1 30); do
+            npm view "mcp-server-zuuna@$VERSION" version --prefer-online >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "npm still does not serve $VERSION after 5 minutes"; exit 1
 
       - name: Install mcp-publisher (pinned v1.8.1)
         run: |
