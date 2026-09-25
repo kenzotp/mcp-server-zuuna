@@ -199,6 +199,7 @@ Behavioral notes:
 - `zuuna_create_card` accepts an optional client-chosen `idempotencyKey`: re-sending the
   same key after a lost response or a 5xx returns the original card (200) instead of
   minting a duplicate.
+- `zuuna_me` also returns a `hiddenTools` list: every tool this token's scopes hide, each with the scope or scopes that would unlock it (the same boundary the startup scope-gating applies).
 - At startup the server reads its own token's scopes (`GET /api/v1/me`) and registers only
   the tools they cover, the same scope gating the hosted connector applies. If that read
   fails (no network yet, an invalid token) it registers every tool instead and prints one

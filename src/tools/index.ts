@@ -2,6 +2,9 @@
 // mirrors kanban-app's src/lib/mcp/tools/index.ts + register.ts). Kept as one
 // flat builder rather than one giant file: each resource owns its own tool
 // definitions, and this file only concatenates and scope-filters them.
+// ZNA-2168 — meTools takes a lazy `() => allTools` closure so zuuna_me can
+// report hiddenTools from the full catalog: the arrow only runs at tool-call
+// time, after the array below is finished, so there is no cycle.
 
 import { attachmentTools } from "./attachments.js";
 import { boardTools } from "./boards.js";
@@ -24,8 +27,8 @@ import type { ZuunaMe } from "../types.js";
 
 /** The full 67-tool set, built against one client (one bearer token per process). */
 export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] {
-  return [
-    ...meTools(client),
+  const allTools: ToolRegistration[] = [
+    ...meTools(client, () => allTools),
     ...groupTools(client),
     ...boardTools(client),
     ...cardTools(client),
@@ -41,6 +44,7 @@ export function buildToolRegistrations(client: ZuunaClient): ToolRegistration[] 
     ...webhookTools(client),
     ...gitTools(client),
   ];
+  return allTools;
 }
 
 /** The tools a set of granted scopes allows — every one of a tool's requiredScopes must be present. Mirrors the hosted endpoint's `allowedTools` (kanban-app src/lib/mcp/register.ts). */

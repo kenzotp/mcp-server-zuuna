@@ -36,6 +36,12 @@ const INSTRUCTIONS = `Zuuna is a Kanban workspace. A few things worth knowing be
   zuuna_update_card was called.
 - Most list tools page: an unpaged call returns the whole collection; pass \`limit\` to opt into
   paging and follow the returned \`nextCursor\` as \`cursor\` for the next page.
+- Keeping a local copy in sync: the card lists (zuuna_list_board_cards,
+  zuuna_list_group_cards) accept an \`updatedSince\` (ISO 8601) filter for
+  incremental sync. Poll with \`updatedSince: <the timestamp you stored from
+  the previous poll>\`, follow \`nextCursor\` as \`cursor\` until a page comes
+  back without one, then store the newest timestamp you saw. Every other
+  list endpoint: re-read it in full with the same limit/cursor paging.
 - A column's work-in-progress limit, when set to HARD, refuses a move into it with a
   \`wip_limit_reached\` error rather than letting the card land there.
 - A tool absent from this session's tool list means the token's scopes do not cover it — that
