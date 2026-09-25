@@ -1,1 +1,2 @@
-Publish 0.2.1 (67 tools): npm publish, then tag v0.2.1
+0.2.1 published (67 tools); npm + MCP Registry in sync
+Next: npm publish from the tag workflow (needs NPM token secret)
