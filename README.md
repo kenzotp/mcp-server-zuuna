@@ -20,7 +20,7 @@ to hack on it.
 
 ## Hosted alternative
 
-The same 67 tools are also available with nothing to install: Zuuna runs a hosted MCP
+The same 68 tools are also available with nothing to install: Zuuna runs a hosted MCP
 connector at [app.zuuna.de/mcp](https://app.zuuna.de/mcp) (OAuth sign-in, Developer plan).
 Point Claude Code, Cursor or Codex at that URL directly and skip the token and the npx
 line below. This package exists for the case that does need a local process: a CI runner,
@@ -30,7 +30,7 @@ for both routes side by side.
 
 ## Tools
 
-67 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
+68 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
 what else the token must carry. The 8 marked **destructive** refuse to run without an
 explicit `confirm: true` argument.
 
@@ -66,6 +66,7 @@ explicit `confirm: true` argument.
 |---|---|---|
 | `zuuna_card` | `GET /api/v1/cards/{idOrKey}` | `cards:read` |
 | `zuuna_list_board_cards` | `GET /api/v1/boards/{boardId}/cards` | `cards:read` |
+| `zuuna_search_cards` | `GET /api/v1/cards` | `cards:read` |
 | `zuuna_create_card` | `POST /api/v1/boards/{boardId}/cards` | `cards:write` |
 | `zuuna_update_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
 | `zuuna_move_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |

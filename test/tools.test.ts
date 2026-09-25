@@ -43,14 +43,45 @@ const DESTRUCTIVE_TOOLS = [
 ];
 
 describe("the full tool set", () => {
-  it("has exactly 67 tools, matching the hosted MCP connector", () => {
+  it("has exactly 68 tools, matching the hosted MCP connector", () => {
     const { all } = makeTools(fixtureHandler());
-    expect(all).toHaveLength(67);
+    expect(all).toHaveLength(68);
   });
 
   it("every tool name is unique", () => {
     const { all } = makeTools(fixtureHandler());
     expect(new Set(all.map((t) => t.name)).size).toBe(all.length);
+  });
+});
+
+describe("zuuna_search_cards", () => {
+  it("maps every filter into the query string of GET /api/v1/cards", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_search_cards", {
+      q: "login",
+      groupId: "g1",
+      priority: "HIGH",
+      label: "f1:opt1",
+      archived: "all",
+      limit: 5,
+    });
+    const call = calls.find((c) => c.url.includes("/api/v1/cards"))!;
+    expect(call.method).toBe("GET");
+    const url = new URL(call.url);
+    expect(url.pathname).toBe("/api/v1/cards");
+    expect(url.searchParams.get("q")).toBe("login");
+    expect(url.searchParams.get("groupId")).toBe("g1");
+    expect(url.searchParams.get("priority")).toBe("HIGH");
+    expect(url.searchParams.get("label")).toBe("f1:opt1");
+    expect(url.searchParams.get("archived")).toBe("all");
+    expect(url.searchParams.get("limit")).toBe("5");
+  });
+
+  it("sends a bare GET /api/v1/cards when no filter is set", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_search_cards", {});
+    const call = calls.find((c) => c.url.includes("/api/v1/cards"))!;
+    expect(new URL(call.url).search).toBe("");
   });
 });
 

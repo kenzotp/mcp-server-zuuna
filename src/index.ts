@@ -2,7 +2,7 @@
 /**
  * mcp-server-zuuna — MCP stdio server exposing Zuuna's v1 API as agent tools.
  * Tool parity with the hosted MCP connector at https://app.zuuna.de/mcp
- * (ZNA-2155): same 67 tools, same 5 prompts, same instructions, adapted only
+ * (ZNA-2155): same 68 tools, same 5 prompts, same instructions, adapted only
  * where a sentence assumed an OAuth connection rather than a bearer token.
  *
  * Config via environment:
