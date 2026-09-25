@@ -43,14 +43,33 @@ const DESTRUCTIVE_TOOLS = [
 ];
 
 describe("the full tool set", () => {
-  it("has exactly 70 tools, matching the hosted MCP connector", () => {
+  it("has exactly 71 tools, matching the hosted MCP connector", () => {
     const { all } = makeTools(fixtureHandler());
-    expect(all).toHaveLength(70);
+    expect(all).toHaveLength(71);
   });
 
   it("every tool name is unique", () => {
     const { all } = makeTools(fixtureHandler());
     expect(new Set(all.map((t) => t.name)).size).toBe(all.length);
+  });
+});
+
+describe("zuuna_create_cards", () => {
+  it("POSTs the batch body to the board's cards path", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_create_cards", {
+      boardId: "b1",
+      cards: [{ title: "One" }, { title: "Two", priority: "HIGH" }],
+    });
+    const call = calls.find((c) => c.method === "POST" && c.url.includes("/api/v1/boards/b1/cards"))!;
+    expect(call.body).toEqual({ cards: [{ title: "One" }, { title: "Two", priority: "HIGH" }] });
+  });
+
+  it("refuses a call without boardId or boardRef", async () => {
+    const { tools } = makeTools(fixtureHandler());
+    const result = await callTool(tools, "zuuna_create_cards", { cards: [{ title: "One" }] });
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toMatch(/boardId or boardRef/);
   });
 });
 
