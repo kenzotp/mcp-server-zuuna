@@ -151,6 +151,46 @@ label: z.string().optional().describe("A tag option id, or a fieldId:optionId to
       }),
     },
     {
+      name: "zuuna_create_cards",
+      description:
+        "Create up to 50 cards on ONE board in a single call. Each item validates exactly like zuuna_create_card (title required; target column by id only) and the answer is one result per item: created (id, key, title, status, columnId) or the error that item alone would have gotten. The card cap counts the whole batch; board, closed-sprint and limit errors stay whole-request.",
+      inputSchema: {
+        boardId: z.string().min(1).optional().describe("Board id. Provide this or boardRef."),
+        boardRef: z.string().min(1).optional().describe("Board key/title instead of boardId, resolved via the board list."),
+        cards: z
+            .array(
+              z.object({
+                title: z.string().min(1),
+                description: z.string().nullable().optional(),
+                priority: priorityEnum.optional(),
+                type: cardTypeEnum.optional(),
+                dueDate: dueLikeDate,
+                startDate: dueLikeDate,
+                estimateSeconds: z.number().nullable().optional(),
+                columnId: z.string().min(1).optional().describe("Target column id (columnTitle is not available on the bulk form)."),
+                assigneeIds: z.array(z.string()).optional(),
+                idempotencyKey: z.string().min(1).optional(),
+              })
+            )
+            .min(1)
+            .max(50),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      requiredScopes: ["cards:write"],
+      run: wrap(async (args) => {
+        let boardIdValue = args.boardId as string | undefined;
+        if (!boardIdValue && args.boardRef) {
+          boardIdValue = (await resolveBoard(client, String(args.boardRef))).boardId;
+        }
+        if (!boardIdValue) return toolError("Provide a board (boardId or boardRef).");
+        return jsonResult(
+          await client.request("POST", `/api/v1/boards/${encodeURIComponent(boardIdValue)}/cards`, {
+            body: { cards: args.cards },
+          }),
+        );
+      }),
+    },
+    {
       name: "zuuna_update_card",
       description:
         "Edit a card. Only the fields you send change: title, description, priority, type, dueDate, startDate, estimateSeconds, storyPoints, ready, columnId (move within the SAME board — a cross-board move is zuuna_move_card_to_board), assigneeIds (REPLACES the full set; [] clears everyone), customFields (object keyed by field id; null/empty clears one — zuuna_list_board_fields names the ids and the option vocabulary).",
