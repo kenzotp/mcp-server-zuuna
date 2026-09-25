@@ -37,6 +37,9 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   /** JSON request body. Omitted entirely (no Content-Type either) when undefined. */
   body?: unknown;
+  /** ZNA-2170 — a multipart body (the attachment upload). fetch sets the
+   * multipart boundary content-type itself; never pair this with `body`. */
+  form?: FormData;
 }
 
 /**
@@ -127,6 +130,18 @@ export class ZuunaClient {
     return this.send(method, path, opts);
   }
 
+  /** ZNA-2170 — POST a multipart form (the attachment upload). Same error
+   * envelope as request(): a non-2xx answer throws ZuunaApiError with the
+   * API's own status, code and message. */
+  async requestForm<T = unknown>(method: HttpMethod, path: string, form: FormData): Promise<T> {
+    const res = await this.send(method, path, { form });
+    try {
+      return (await res.json()) as T;
+    } catch (err) {
+      throw new ZuunaNetworkError(`The Zuuna API at ${path} returned a non-JSON response.`, { cause: err });
+    }
+  }
+
   // ---- plumbing ----
 
   private buildUrl(path: string, query?: RequestOptions["query"]): string {
@@ -153,7 +168,7 @@ export class ZuunaClient {
       res = await this.fetchImpl(url, {
         method,
         headers,
-        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        body: opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (err) {

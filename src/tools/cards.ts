@@ -51,6 +51,46 @@ export function cardTools(client: ZuunaClient): ToolRegistration[] {
       ),
     },
     {
+      name: "zuuna_search_cards",
+      description:
+        "Search cards workspace-wide: the one list that needs no board or group id up front. Filters narrow: q (case-insensitive text in title + description), groupId, boardId, columnId, assigneeId, epicId, priority (HIGHEST|HIGH|NORMAL|LOW|LOWEST), label (a tag option id or \"<fieldId>:<optionId>\" token). archived narrows to false|true|all (default false); updatedSince (ISO 8601) narrows to cards changed after it, for incremental sync. Bad values are refused with an error, never silently ignored.",
+      inputSchema: {
+        q: z.string().optional(),
+        groupId: z.string().optional(),
+        boardId: z.string().optional(),
+        columnId: z.string().optional(),
+        assigneeId: z.string().optional(),
+        priority: priorityEnum.optional(),
+        epicId: z.string().optional(),
+label: z.string().optional().describe("A tag option id, or a fieldId:optionId token, the shape the board filter uses."),
+        archived: z.enum(["false", "true", "all"]).optional(),
+        updatedSince: z.string().optional(),
+        ...pageArgs,
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      requiredScopes: ["cards:read"],
+      run: wrap(async (args) =>
+        jsonResult(
+          await client.request("GET", "/api/v1/cards", {
+              query: {
+                q: args.q as string | undefined,
+                groupId: args.groupId as string | undefined,
+                boardId: args.boardId as string | undefined,
+                columnId: args.columnId as string | undefined,
+                assigneeId: args.assigneeId as string | undefined,
+                priority: args.priority as string | undefined,
+                epicId: args.epicId as string | undefined,
+                label: args.label as string | undefined,
+                archived: args.archived as string | undefined,
+                updatedSince: args.updatedSince as string | undefined,
+                limit: args.limit as number | undefined,
+                cursor: args.cursor as string | undefined,
+              },
+          }),
+        ),
+      ),
+    },
+    {
       name: "zuuna_create_card",
       description:
         "Create a card on a board. Title is required; give the target column by id or by title (omitted = the board's first column). idempotencyKey makes a retry safe: re-sending the same key after a lost response or a 5xx returns the ORIGINAL card instead of a duplicate.",

@@ -20,7 +20,7 @@ to hack on it.
 
 ## Hosted alternative
 
-The same 67 tools are also available with nothing to install: Zuuna runs a hosted MCP
+The same 69 tools are also available with nothing to install: Zuuna runs a hosted MCP
 connector at [app.zuuna.de/mcp](https://app.zuuna.de/mcp) (OAuth sign-in, Developer plan).
 Point Claude Code, Cursor or Codex at that URL directly and skip the token and the npx
 line below. This package exists for the case that does need a local process: a CI runner,
@@ -30,7 +30,7 @@ for both routes side by side.
 
 ## Tools
 
-67 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
+69 tools, grouped by area. Every tool works with any valid token; the Scopes column lists
 what else the token must carry. The 8 marked **destructive** refuse to run without an
 explicit `confirm: true` argument.
 
@@ -66,6 +66,7 @@ explicit `confirm: true` argument.
 |---|---|---|
 | `zuuna_card` | `GET /api/v1/cards/{idOrKey}` | `cards:read` |
 | `zuuna_list_board_cards` | `GET /api/v1/boards/{boardId}/cards` | `cards:read` |
+| `zuuna_search_cards` | `GET /api/v1/cards` | `cards:read` |
 | `zuuna_create_card` | `POST /api/v1/boards/{boardId}/cards` | `cards:write` |
 | `zuuna_update_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
 | `zuuna_move_card` | `PATCH /api/v1/cards/{idOrKey}` | `cards:write` |
@@ -101,11 +102,12 @@ explicit `confirm: true` argument.
 
 ### Attachments
 
-Metadata only, both ways: no tool here ever reads or writes file bytes (see "Honest scope" below).
+Upload included since ZNA-2170: `zuuna_upload_attachment` takes a local file path, or base64 bytes plus a filename. List and get still return metadata only, never the bytes themselves.
 
 | Tool | Method + path | Scopes |
 |---|---|---|
 | `zuuna_list_attachments` | `GET /api/v1/cards/{cardId}/attachments` | `cards:read` |
+| `zuuna_upload_attachment` | `POST /api/v1/cards/{cardId}/attachments` | `cards:write` |
 | `zuuna_get_attachment` | `GET /api/v1/cards/{cardId}/attachments/{attachmentId}` (metadata only) | `cards:read` |
 | `zuuna_delete_attachment` **(destructive)** | `DELETE /api/v1/cards/{cardId}/attachments/{attachmentId}` | `cards:write` |
 
@@ -320,8 +322,8 @@ There are now three `git:write` tools, and what they do is narrower than the nam
 None of the three **moves a card**. A card moves only because a board rule matched it (see
 "The loop" above) or because `zuuna_move_card` / `zuuna_update_card` was called directly.
 Automations themselves stay read-only here too (`zuuna_list_automations`): no tool creates,
-edits or disables one. Attachments are metadata-only both ways: no tool reads or writes a
-file's bytes, uploading included, the same restriction the hosted connector carries.
+edits or disables one. Attachment uploads go through as multipart (ZNA-2170) with the REST
+route's own limits and errors; no tool ever READS a file's bytes back out.
 
 ## Development
 
