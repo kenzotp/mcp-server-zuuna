@@ -54,6 +54,60 @@ export function groupTools(client: ZuunaClient): ToolRegistration[] {
       ),
     },
     {
+      name: "zuuna_create_epic",
+      description:
+          "Create an epic in a group: a real ticket with its own key (a board-less group card), referencable and linkable like any other card. Title is required; colour comes from the 8-name palette and defaults to purple.",
+      inputSchema: {
+        groupId,
+        title: z.string().min(1),
+        description: z.string().nullable().optional(),
+        color: z
+          .enum(["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"])
+          .optional()
+          .describe("Epic chip colour; omitted means the palette default (purple)."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      requiredScopes: ["cards:write"],
+      run: wrap(async (args) =>
+        jsonResult(
+          await client.request("POST", `/api/v1/groups/${encodeURIComponent(String(args.groupId))}/epics`, {
+            body: { title: args.title, description: args.description, color: args.color },
+          }),
+        ),
+      ),
+    },
+    {
+      name: "zuuna_update_epic",
+      description:
+          "Edit an epic. Only the fields you send change: title, description, colour.",
+      inputSchema: {
+        groupId,
+        epicId: z.string().min(1).describe("Epic id (zuuna_list_epics)."),
+        title: z.string().min(1).optional().describe("Omitted fields stay unchanged."),
+        description: z.string().nullable().optional(),
+        color: z
+          .enum(["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"])
+          .optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      requiredScopes: ["cards:write"],
+      run: wrap(async (args) =>
+        jsonResult(
+          await client.request(
+            "PATCH",
+            `/api/v1/groups/${encodeURIComponent(String(args.groupId))}/epics/${encodeURIComponent(String(args.epicId))}`,
+            {
+              body: {
+                ...(args.title !== undefined ? { title: args.title } : {}),
+                ...(args.description !== undefined ? { description: args.description } : {}),
+                ...(args.color !== undefined ? { color: args.color } : {}),
+              },
+            },
+          ),
+        ),
+      ),
+    },
+    {
       name: "zuuna_list_group_cards",
       description:
         "List every card in a group, whether it stands on a board or in the group's backlog (a board-less card, columnId null). Use this to discover backlog cards — no other list surfaces them. `placement` narrows to board|backlog|all (default all).",

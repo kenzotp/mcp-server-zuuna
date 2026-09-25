@@ -43,9 +43,9 @@ const DESTRUCTIVE_TOOLS = [
 ];
 
 describe("the full tool set", () => {
-  it("has exactly 71 tools, matching the hosted MCP connector", () => {
+  it("has exactly 73 tools, matching the hosted MCP connector", () => {
     const { all } = makeTools(fixtureHandler());
-    expect(all).toHaveLength(71);
+    expect(all).toHaveLength(73);
   });
 
   it("every tool name is unique", () => {
@@ -70,6 +70,22 @@ describe("zuuna_create_cards", () => {
     const result = await callTool(tools, "zuuna_create_cards", { cards: [{ title: "One" }] });
     expect(result.isError).toBe(true);
     expect(resultText(result)).toMatch(/boardId or boardRef/);
+  });
+});
+
+describe("epic write tools", () => {
+  it("zuuna_create_epic POSTs the group's epics path with the body", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_create_epic", { groupId: "g1", title: "Login revamp", color: "red" });
+    const call = calls.find((c) => c.method === "POST" && c.url.includes("/api/v1/groups/g1/epics"))!;
+    expect(call.body).toEqual({ title: "Login revamp", description: undefined, color: "red" });
+  });
+
+  it("zuuna_update_epic PATCHes only the sent fields", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_update_epic", { groupId: "g1", epicId: "e1", color: "red" });
+    const call = calls.find((c) => c.method === "PATCH" && c.url.includes("/api/v1/groups/g1/epics/e1"))!;
+    expect(call.body).toEqual({ color: "red" });
   });
 });
 
