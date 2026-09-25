@@ -27,6 +27,9 @@ export function mockFetch(handler: MockHandler): { impl: typeof fetch; calls: Mo
       } catch {
         body = init.body;
       }
+    } else if (init?.body !== undefined) {
+      // ZNA-2170: non-string bodies (the upload's FormData) are recorded as-is.
+      body = init.body;
     }
     calls.push({ url, method, headers: (init?.headers ?? {}) as Record<string, string>, body });
     const out = handler({ url, method, body });

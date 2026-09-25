@@ -43,14 +43,67 @@ const DESTRUCTIVE_TOOLS = [
 ];
 
 describe("the full tool set", () => {
-  it("has exactly 68 tools, matching the hosted MCP connector", () => {
+  it("has exactly 69 tools, matching the hosted MCP connector", () => {
     const { all } = makeTools(fixtureHandler());
-    expect(all).toHaveLength(68);
+    expect(all).toHaveLength(69);
   });
 
   it("every tool name is unique", () => {
     const { all } = makeTools(fixtureHandler());
     expect(new Set(all.map((t) => t.name)).size).toBe(all.length);
+  });
+});
+
+describe("zuuna_upload_attachment", () => {
+  it("base64 + filename POSTs a multipart form with the decoded bytes", async () => {
+    const { tools, calls } = makeTools(fixtureHandler());
+    const result = await callTool(tools, "zuuna_upload_attachment", {
+      card: "ZNA-2001",
+      filename: "report.png",
+      base64: Buffer.from([1, 2, 3]).toString("base64"),
+    });
+    expect(result.isError).toBeFalsy();
+    const call = calls.find((c) => c.method === "POST" && c.url.includes("/attachments"))!;
+    expect(call.url).toContain("/api/v1/cards/ZNA-2001/attachments");
+    // The mock fetch records exactly what the client passed: a FormData body.
+    // (A real fetch adds the multipart boundary content-type itself.)
+    expect(call.body).toBeInstanceOf(FormData);
+    const form = call.body as FormData;
+    const file = form.get("file") as File;
+    expect(file.name).toBe("report.png");
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it("a local file path is read and uploaded under its basename", async () => {
+    const fs = await import("node:fs/promises");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zuuna-upload-"));
+    const file = path.join(dir, "notes.txt");
+    await fs.writeFile(file, "hello");
+    const { tools, calls } = makeTools(fixtureHandler());
+    await callTool(tools, "zuuna_upload_attachment", { card: "c1", path: file });
+    const call = calls.find((c) => c.method === "POST" && c.url.includes("/attachments"))!;
+    const form = call.body as FormData;
+    expect((form.get("file") as File).name).toBe("notes.txt");
+  });
+
+  it("refuses path AND base64 together, and base64 without a filename", async () => {
+    const { tools } = makeTools(fixtureHandler());
+    const both = await callTool(tools, "zuuna_upload_attachment", {
+      card: "c1", path: "/tmp/x", base64: "aGk=",
+    });
+    expect(both.isError).toBe(true);
+    expect(resultText(both)).toMatch(/not both/);
+
+    const noName = await callTool(tools, "zuuna_upload_attachment", {
+      card: "c1", base64: "aGk=",
+    });
+    expect(noName.isError).toBe(true);
+    expect(resultText(noName)).toMatch(/filename is required/);
+
+    const neither = await callTool(tools, "zuuna_upload_attachment", { card: "c1" });
+    expect(neither.isError).toBe(true);
   });
 });
 
