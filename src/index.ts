@@ -18,7 +18,7 @@ import { DEFAULT_TIMEOUT_MS, ZuunaClient } from "./client.js";
 import { ALL_PROMPTS } from "./prompts.js";
 import { buildToolRegistrations, resolveToolsForToken } from "./tools/index.js";
 
-export const SERVER_VERSION = "0.2.1";
+export const SERVER_VERSION = "0.3.0";
 
 const INSTRUCTIONS = `Zuuna is a Kanban workspace. A few things worth knowing before calling anything:
 
